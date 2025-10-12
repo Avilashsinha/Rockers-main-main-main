@@ -12,8 +12,11 @@ const upload = multer({
   limits: { fileSize: 50 * 1024 * 1024 }
 });
 
-// Single data store
-let dataStore = [];
+// Persistent data store using global
+if (!global.persistentNotes) {
+  global.persistentNotes = [];
+}
+let dataStore = global.persistentNotes;
 
 export default function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
