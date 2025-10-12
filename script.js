@@ -86,7 +86,14 @@ async function render() {
 
     const data = await res.json();
 
-    const notes = data.filter((x) => x.type === "note");
+    const notes = data.filter((x) => x.type === "note").map(n => {
+      // ✅ Force Cloudinary PDFs to open inline, not download
+      if (n.fileUrl && n.fileUrl.includes("/upload/")) {
+        n.fileUrl = n.fileUrl.replace("/upload/", "/upload/fl_inline/");
+      }
+      return n;
+    });
+
     const images = data.filter((x) => x.type === "image");
 
     notesList.innerHTML = notes.length > 0 ? notes
@@ -99,15 +106,17 @@ async function render() {
           <div class="file-info">
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
-          ${n.fileType === "application/pdf" ?
-            `<iframe src="${n.fileUrl}" style="width: 100%; height: 200px; border: 1px solid #ddd; margin: 10px 0;"></iframe>` :
-            ""
+
+          ${n.fileType === "application/pdf"
+            ? `<iframe src="${n.fileUrl}" style="width: 100%; height: 200px; border: 1px solid #ddd; margin: 10px 0;" allowfullscreen></iframe>`
+            : ""
           }
+
           <div class="card-actions">
-            <a href="${n.fileUrl}" target="_blank" class="download-btn">
+            <a href="${n.fileUrl}" target="_blank" rel="noopener noreferrer" class="download-btn">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> Download Note
+              </svg> View Note
             </a>
             <button onclick="deleteFile('${n.id}')" class="delete-btn">
               🗑️ Delete
@@ -130,10 +139,10 @@ async function render() {
           <img src="${i.fileUrl}" alt="${i.title}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 10px 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
           <div style="display: none; text-align: center; padding: 20px; color: var(--text-light);">📷 Image preview unavailable</div>
           <div class="card-actions">
-            <a href="${i.fileUrl}" target="_blank" class="download-btn">
+            <a href="${i.fileUrl}" target="_blank" rel="noopener noreferrer" class="download-btn">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> Download Image
+              </svg> View Image
             </a>
             <button onclick="deleteFile('${i.id}')" class="delete-btn">
               🗑️ Delete
