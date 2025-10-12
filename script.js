@@ -74,79 +74,59 @@ async function upload() {
 }
 
 async function render() {
+  const notesContainer = document.getElementById("notesContainer");
+  notesContainer.innerHTML = "Loading notes...";
+
   try {
-    notesList.innerHTML = '<p>Loading notes...</p>';
-    imagesList.innerHTML = '<p>Loading images...</p>';
+    const res = await fetch("/api/getNotes");
+    const notes = await res.json();
 
-    const res = await fetch(`${API_URL}/data`);
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    notesContainer.innerHTML = "";
 
-    const data = await res.json();
+    if (!notes || notes.length === 0) {
+      notesContainer.innerHTML = "<p>No notes uploaded yet.</p>";
+      return;
+    }
 
-    const notes = data.filter(x => x.type === "note");
-    const images = data.filter(x => x.type === "image");
-
-    // ✅ Cloudinary URL Fix
-    data.forEach(item => {
-      if (item.fileUrl && item.fileUrl.includes("res.cloudinary.com/dwm9m3dwk/")) {
-        // Force correct format for raw PDFs
-        if (item.fileUrl.includes("/raw/upload/")) {
-          // Replace `/raw/upload/` → `/upload/fl_attachment/`
-          item.fileUrl = item.fileUrl.replace("/raw/upload/", "/upload/fl_attachment/");
-        } else if (item.fileUrl.includes("/upload/")) {
-          // Normal images are fine
-          item.fileUrl = item.fileUrl.replace("/upload/", "/upload/fl_inline/");
-        }
+    notes.forEach((n) => {
+      // ✅ If it's a Cloudinary file, force download link
+      if (n.fileUrl && n.fileUrl.includes("/upload/")) {
+        n.fileUrl = n.fileUrl.replace("/upload/", "/upload/fl_attachment/");
       }
-    });
 
-    // ✅ Render Notes
-    notesList.innerHTML = notes.length > 0
-      ? notes.map(n => `
-        <div class="card" data-id="${n.id}">
-          <h3>${n.title}</h3>
-          <div class="meta">${n.subject || "General"}</div>
-          <p>${n.desc || ""}</p>
-          <div class="file-info">
-            <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
-          </div>
-
+      const noteCard = document.createElement("div");
+      noteCard.className = "note-card";
+      noteCard.innerHTML = `
+        <h3>${n.subject || "Untitled Note"}</h3>
+        <p>${n.description || ""}</p>
+        <div class="actions">
           ${
-            n.fileType === "application/pdf"
-              ? `<iframe src="${n.fileUrl}" style="width:100%;height:400px;border:1px solid #ddd;"></iframe>`
+            n.fileUrl
+              ? `<button class="download-btn" data-url="${n.fileUrl}">📥 Download PDF</button>`
               : ""
           }
-
-          <div class="card-actions">
-            <a href="${n.fileUrl}" target="_blank" class="download-btn">🔗 View / Download</a>
-            <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
-          </div>
         </div>
-      `).join("")
-      : '<p>No notes uploaded yet.</p>';
+      `;
 
-    // ✅ Render Images
-    imagesList.innerHTML = images.length > 0
-      ? images.map(i => `
-        <div class="card" data-id="${i.id}">
-          <h3>${i.title}</h3>
-          <div class="meta">${i.subject || "General"}</div>
-          <p>${i.desc || ""}</p>
-          <img src="${i.fileUrl}" alt="${i.title}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;">
-          <div class="card-actions">
-            <a href="${i.fileUrl}" target="_blank" class="download-btn">🖼️ View Image</a>
-            <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
-          </div>
-        </div>
-      `).join("")
-      : '<p>No images uploaded yet.</p>';
+      notesContainer.appendChild(noteCard);
+    });
 
-    updateCounts(notes.length, images.length);
+    // ✅ Attach download button logic
+    document.querySelectorAll(".download-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const url = btn.getAttribute("data-url");
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = ""; // forces download
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
+    });
 
-  } catch (error) {
-    console.error("Render error:", error);
-    notesList.innerHTML = `<p>Unable to load notes: ${error.message}</p>`;
-    imagesList.innerHTML = `<p>Unable to load images: ${error.message}</p>`;
+  } catch (err) {
+    console.error("Error loading notes:", err);
+    notesContainer.innerHTML = "<p>Failed to load notes.</p>";
   }
 }
 
