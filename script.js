@@ -75,7 +75,7 @@ async function upload() {
 
 async function render() {
   try {
-    // Show loading state
+    // Show loading placeholders
     notesList.innerHTML = '<p>Loading notes...</p>';
     imagesList.innerHTML = '<p>Loading images...</p>';
 
@@ -86,27 +86,25 @@ async function render() {
 
     const data = await res.json();
 
-    // ✅ Fix Cloudinary URLs (so PDFs show inline instead of download/error)
-    for (const item of data) {
+    // Fix Cloudinary URLs so PDFs open inline (not downloaded)
+    data.forEach(item => {
       if (item.fileUrl) {
         if (item.fileUrl.includes("/raw/upload/")) {
-          // For PDFs or raw files
-          item.fileUrl = item.fileUrl.replace("/raw/upload/", "/upload/fl_attachment/");
+          // Convert Cloudinary raw URLs to inline view URLs
+          item.fileUrl = item.fileUrl.replace("/raw/upload/", "/upload/fl_inline/");
         } else if (item.fileUrl.includes("/upload/")) {
-          // For images or other uploads
-          item.fileUrl = item.fileUrl.replace("/upload/", "/upload/fl_attachment/");
+          // Ensure inline mode for images or other uploads
+          item.fileUrl = item.fileUrl.replace("/upload/", "/upload/fl_inline/");
         }
       }
-    }
+    });
 
-    // Separate notes and images
-    const notes = data.filter((x) => x.type === "note");
-    const images = data.filter((x) => x.type === "image");
+    const notes = data.filter(x => x.type === "note");
+    const images = data.filter(x => x.type === "image");
 
-    // ✅ Render notes (PDFs)
-    notesList.innerHTML = notes.length > 0 ? notes
-      .map(
-        (n) => `
+    // Render Notes Section
+    notesList.innerHTML = notes.length > 0
+      ? notes.map(n => `
         <div class="card" data-id="${n.id}">
           <h3>${n.title}</h3>
           <div class="meta">${n.subject || "General"}</div>
@@ -115,33 +113,26 @@ async function render() {
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
 
-          ${
-            n.fileType === "application/pdf"
-              ? `<iframe src="${n.fileUrl}" 
-                    style="width: 100%; height: 400px; border: 1px solid #ddd; margin: 10px 0;" 
-                    title="PDF Preview"
-                    allow="fullscreen">
-                 </iframe>`
-              : ""
+          ${n.fileType === "application/pdf" && n.fileUrl
+            ? `<iframe src="${n.fileUrl}" style="width: 100%; height: 300px; border: 1px solid #ccc; border-radius: 8px; margin: 10px 0;"></iframe>`
+            : `<a href="${n.fileUrl}" target="_blank" class="download-btn">View File</a>`
           }
 
           <div class="card-actions">
             <a href="${n.fileUrl}" target="_blank" class="download-btn">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> View / Download Note
+              </svg> Open Note
             </a>
             <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
-        </div>`
-      )
-      .join("")
+        </div>
+      `).join("")
       : '<p>No notes uploaded yet. Start by uploading your first note!</p>';
 
-    // ✅ Render images
-    imagesList.innerHTML = images.length > 0 ? images
-      .map(
-        (i) => `
+    // Render Images Section
+    imagesList.innerHTML = images.length > 0
+      ? images.map(i => `
         <div class="card" data-id="${i.id}">
           <h3>${i.title}</h3>
           <div class="meta">${i.subject || "General"}</div>
@@ -149,7 +140,7 @@ async function render() {
           <div class="file-info">
             <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
           </div>
-          <img src="${i.fileUrl}" alt="${i.title}" 
+          <img src="${i.fileUrl}" alt="${i.title}"
                style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 10px 0;"
                onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
           <div style="display: none; text-align: center; padding: 20px; color: var(--text-light);">
@@ -159,16 +150,15 @@ async function render() {
             <a href="${i.fileUrl}" target="_blank" class="download-btn">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> View / Download Image
+              </svg> Open Image
             </a>
             <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
-        </div>`
-      )
-      .join("")
+        </div>
+      `).join("")
       : '<p>No images uploaded yet. Start by uploading your first image!</p>';
 
-    // ✅ Update counts in navbar
+    // Update counts
     updateCounts(notes.length, images.length);
 
   } catch (error) {
