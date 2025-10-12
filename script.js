@@ -86,16 +86,24 @@ async function render() {
 
     const data = await res.json();
 
-    const notes = data.filter((x) => x.type === "note").map(n => {
-      // ✅ Force Cloudinary PDFs to open inline, not download
-      if (n.fileUrl && n.fileUrl.includes("/upload/")) {
-        n.fileUrl = n.fileUrl.replace("/upload/", "/upload/fl_inline/");
+    // ✅ Fix Cloudinary URLs (so PDFs show inline instead of download/error)
+    for (const item of data) {
+      if (item.fileUrl) {
+        if (item.fileUrl.includes("/raw/upload/")) {
+          // For PDFs or raw files
+          item.fileUrl = item.fileUrl.replace("/raw/upload/", "/upload/fl_attachment/");
+        } else if (item.fileUrl.includes("/upload/")) {
+          // For images or other uploads
+          item.fileUrl = item.fileUrl.replace("/upload/", "/upload/fl_attachment/");
+        }
       }
-      return n;
-    });
+    }
 
+    // Separate notes and images
+    const notes = data.filter((x) => x.type === "note");
     const images = data.filter((x) => x.type === "image");
 
+    // ✅ Render notes (PDFs)
     notesList.innerHTML = notes.length > 0 ? notes
       .map(
         (n) => `
@@ -107,25 +115,30 @@ async function render() {
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
 
-          ${n.fileType === "application/pdf"
-            ? `<iframe src="${n.fileUrl}" style="width: 100%; height: 200px; border: 1px solid #ddd; margin: 10px 0;" allowfullscreen></iframe>`
-            : ""
+          ${
+            n.fileType === "application/pdf"
+              ? `<iframe src="${n.fileUrl}" 
+                    style="width: 100%; height: 400px; border: 1px solid #ddd; margin: 10px 0;" 
+                    title="PDF Preview"
+                    allow="fullscreen">
+                 </iframe>`
+              : ""
           }
 
           <div class="card-actions">
-            <a href="${n.fileUrl}" target="_blank" rel="noopener noreferrer" class="download-btn">
+            <a href="${n.fileUrl}" target="_blank" class="download-btn">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> View Note
+              </svg> View / Download Note
             </a>
-            <button onclick="deleteFile('${n.id}')" class="delete-btn">
-              🗑️ Delete
-            </button>
+            <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>`
       )
-      .join("") : '<p>No notes uploaded yet. Start by uploading your first note!</p>';
+      .join("")
+      : '<p>No notes uploaded yet. Start by uploading your first note!</p>';
 
+    // ✅ Render images
     imagesList.innerHTML = images.length > 0 ? images
       .map(
         (i) => `
@@ -136,29 +149,43 @@ async function render() {
           <div class="file-info">
             <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
           </div>
-          <img src="${i.fileUrl}" alt="${i.title}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 10px 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-          <div style="display: none; text-align: center; padding: 20px; color: var(--text-light);">📷 Image preview unavailable</div>
+          <img src="${i.fileUrl}" alt="${i.title}" 
+               style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 10px 0;"
+               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <div style="display: none; text-align: center; padding: 20px; color: var(--text-light);">
+            📷 Image preview unavailable
+          </div>
           <div class="card-actions">
-            <a href="${i.fileUrl}" target="_blank" rel="noopener noreferrer" class="download-btn">
+            <a href="${i.fileUrl}" target="_blank" class="download-btn">
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
                 <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> View Image
+              </svg> View / Download Image
             </a>
-            <button onclick="deleteFile('${i.id}')" class="delete-btn">
-              🗑️ Delete
-            </button>
+            <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>`
       )
-      .join("") : '<p>No images uploaded yet. Start by uploading your first image!</p>';
+      .join("")
+      : '<p>No images uploaded yet. Start by uploading your first image!</p>';
 
+    // ✅ Update counts in navbar
     updateCounts(notes.length, images.length);
+
   } catch (error) {
     console.error("Render error:", error);
-    notesList.innerHTML = `<p>Unable to load notes. ${error.message.includes('Failed to fetch') ? 'Please check your internet connection.' : error.message}</p>`;
-    imagesList.innerHTML = `<p>Unable to load images. ${error.message.includes('Failed to fetch') ? 'Please check your internet connection.' : error.message}</p>`;
+    notesList.innerHTML = `<p>Unable to load notes. ${
+      error.message.includes('Failed to fetch')
+        ? 'Please check your internet connection.'
+        : error.message
+    }</p>`;
+    imagesList.innerHTML = `<p>Unable to load images. ${
+      error.message.includes('Failed to fetch')
+        ? 'Please check your internet connection.'
+        : error.message
+    }</p>`;
   }
 }
+
 
 function formatFileSize(bytes) {
   if (!bytes) return "0 B";
