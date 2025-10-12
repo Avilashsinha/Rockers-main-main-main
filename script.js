@@ -138,10 +138,12 @@ async function render() {
           </div>
           <img src="${i.fileUrl}" alt="${i.title}" 
                style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
-          <div class="card-actions">
-            <a href="${i.fileUrl}" download class="download-btn">⬇️ Download Image</a>
-            <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
-          </div>
+         <div class="card-actions">
+  <button onclick="openPreview('${n.viewUrl}', '${n.fileType}')" class="view-btn">👁️ View</button>
+  <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download</a>
+  <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
+</div>
+
         </div>
       `).join("")
       : '<p>No images uploaded yet.</p>';
@@ -152,6 +154,29 @@ async function render() {
     notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
     imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
   }
+  function openPreview(url, type) {
+  const modal = document.getElementById("previewModal");
+  const container = document.getElementById("previewContainer");
+  container.innerHTML = "";
+
+  if (type === "application/pdf") {
+    container.innerHTML = `<iframe src="${url}" title="PDF Preview"></iframe>`;
+  } else if (type.startsWith("image/")) {
+    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
+  } else {
+    container.innerHTML = `<p>Cannot preview this file type.</p>`;
+  }
+
+  modal.classList.add("active");
+}
+
+function closePreview(event) {
+  const modal = document.getElementById("previewModal");
+  if (!event || event.target === modal || event.target.classList.contains("close-btn")) {
+    modal.classList.remove("active");
+  }
+}
+
 }
 
 
