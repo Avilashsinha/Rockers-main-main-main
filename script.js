@@ -39,10 +39,10 @@ async function upload() {
     formData.append("desc", desc);
     formData.append("type", type);
 
-    const res = await fetch(`${API_URL}/data`, {
-      method: "POST",
-      body: formData,
-    });
+    const res = await fetch("/api/upload", {
+  method: "POST",
+  body: formData
+});
 
     if (!res.ok) {
       throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
