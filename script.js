@@ -86,17 +86,22 @@ async function render() {
     const notes = data.filter((x) => x.type === "note");
     const images = data.filter((x) => x.type === "image");
 
-    // ✅ Fix Cloudinary URLs to view inline, not download
+    // ✅ Fix Cloudinary URLs for inline preview (remove any auto-download flags)
     notes.forEach((n) => {
       if (n.fileUrl && n.fileUrl.includes("res.cloudinary.com/dwm9m3dwk")) {
-        // Replace raw URLs to use inline PDF display mode
-        n.fileUrl = n.fileUrl
-          .replace("/upload/", "/upload/fl_attachment:false/")
-          .replace("/raw/upload/", "/upload/fl_attachment:false/");
+        // Clean up URL for inline display
+        n.viewUrl = n.fileUrl.replace(/\/upload\/.*?\//, "/upload/");
+        // Add explicit download version
+        n.downloadUrl = n.fileUrl.includes("?")
+          ? `${n.fileUrl}&fl_attachment=true`
+          : `${n.fileUrl}?fl_attachment=true`;
+      } else {
+        n.viewUrl = n.fileUrl;
+        n.downloadUrl = n.fileUrl;
       }
     });
 
-    // ✅ Render notes with embedded PDF preview (not auto-download)
+    // ✅ Render notes
     notesList.innerHTML = notes.length > 0
       ? notes.map((n) => `
         <div class="card" data-id="${n.id}">
@@ -109,18 +114,13 @@ async function render() {
           
           ${
             n.fileType === "application/pdf"
-              ? `<iframe src="${n.fileUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
+              ? `<iframe src="${n.viewUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
               : ""
           }
 
           <div class="card-actions">
-            <!-- ✅ Clicking this downloads directly, not opens -->
-            <a href="${n.fileUrl}" download class="download-btn">
-              ⬇️ Download Note
-            </a>
-            <button onclick="deleteFile('${n.id}')" class="delete-btn">
-              🗑️ Delete
-            </button>
+            <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download Note</a>
+            <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>
       `).join("")
@@ -136,14 +136,11 @@ async function render() {
           <div class="file-info">
             <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
           </div>
-          <img src="${i.fileUrl}" alt="${i.title}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
+          <img src="${i.fileUrl}" alt="${i.title}" 
+               style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
           <div class="card-actions">
-            <a href="${i.fileUrl}" download class="download-btn">
-              ⬇️ Download Image
-            </a>
-            <button onclick="deleteFile('${i.id}')" class="delete-btn">
-              🗑️ Delete
-            </button>
+            <a href="${i.fileUrl}" download class="download-btn">⬇️ Download Image</a>
+            <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>
       `).join("")
@@ -156,7 +153,6 @@ async function render() {
     imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
   }
 }
-
 
 
 function formatFileSize(bytes) {
