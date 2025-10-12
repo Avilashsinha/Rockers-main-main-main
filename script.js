@@ -83,34 +83,24 @@ async function render() {
 
     const data = await res.json();
 
-    // 🔧 Fix Cloudinary URLs manually
-    data.forEach(item => {
-      if (item.fileUrl) {
-        // Ensure it uses your Cloudinary domain
-        if (!item.fileUrl.startsWith("https://res.cloudinary.com/")) {
-          item.fileUrl = `https://res.cloudinary.com/dwm9m3dwk/${item.fileUrl}`;
-        }
+    const notes = data.filter(x => x.type === "note");
+    const images = data.filter(x => x.type === "image");
 
-        // Handle PDFs (raw resource type)
+    // ✅ Cloudinary URL Fix
+    data.forEach(item => {
+      if (item.fileUrl && item.fileUrl.includes("res.cloudinary.com/dwm9m3dwk/")) {
+        // Force correct format for raw PDFs
         if (item.fileUrl.includes("/raw/upload/")) {
-          item.inlineUrl = item.fileUrl.replace("/raw/upload/", "/image/upload/");
-          item.downloadUrl = item.fileUrl.replace("/raw/upload/", "/image/upload/fl_attachment/");
-        }
-        // Handle normal images
-        else if (item.fileUrl.includes("/upload/")) {
-          item.inlineUrl = item.fileUrl.replace("/upload/", "/upload/");
-          item.downloadUrl = item.fileUrl.replace("/upload/", "/upload/fl_attachment/");
-        } else {
-          item.inlineUrl = item.fileUrl;
-          item.downloadUrl = item.fileUrl;
+          // Replace `/raw/upload/` → `/upload/fl_attachment/`
+          item.fileUrl = item.fileUrl.replace("/raw/upload/", "/upload/fl_attachment/");
+        } else if (item.fileUrl.includes("/upload/")) {
+          // Normal images are fine
+          item.fileUrl = item.fileUrl.replace("/upload/", "/upload/fl_inline/");
         }
       }
     });
 
-    const notes = data.filter(x => x.type === "note");
-    const images = data.filter(x => x.type === "image");
-
-    // 📄 Notes
+    // ✅ Render Notes
     notesList.innerHTML = notes.length > 0
       ? notes.map(n => `
         <div class="card" data-id="${n.id}">
@@ -121,49 +111,45 @@ async function render() {
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
 
-          ${n.fileType === "application/pdf"
-            ? `<iframe src="${n.inlineUrl}" style="width:100%; height:300px; border:1px solid #ccc; border-radius:8px;"></iframe>`
-            : `<a href="${n.inlineUrl}" target="_blank" class="download-btn">View File</a>`}
+          ${
+            n.fileType === "application/pdf"
+              ? `<iframe src="${n.fileUrl}" style="width:100%;height:400px;border:1px solid #ddd;"></iframe>`
+              : ""
+          }
 
           <div class="card-actions">
-            <a href="${n.downloadUrl}" target="_blank" class="download-btn">
-              ⬇️ Download
-            </a>
+            <a href="${n.fileUrl}" target="_blank" class="download-btn">🔗 View / Download</a>
             <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>
       `).join("")
-      : '<p>No notes uploaded yet. Start by uploading your first note!</p>';
+      : '<p>No notes uploaded yet.</p>';
 
-    // 🖼️ Images
+    // ✅ Render Images
     imagesList.innerHTML = images.length > 0
       ? images.map(i => `
         <div class="card" data-id="${i.id}">
           <h3>${i.title}</h3>
           <div class="meta">${i.subject || "General"}</div>
           <p>${i.desc || ""}</p>
-          <div class="file-info">
-            <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
-          </div>
-          <img src="${i.inlineUrl}" alt="${i.title}" style="width:100%; height:200px; object-fit:cover; border-radius:8px; margin:10px 0;">
+          <img src="${i.fileUrl}" alt="${i.title}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;">
           <div class="card-actions">
-            <a href="${i.downloadUrl}" target="_blank" class="download-btn">
-              ⬇️ Download
-            </a>
+            <a href="${i.fileUrl}" target="_blank" class="download-btn">🖼️ View Image</a>
             <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>
       `).join("")
-      : '<p>No images uploaded yet. Start by uploading your first image!</p>';
+      : '<p>No images uploaded yet.</p>';
 
     updateCounts(notes.length, images.length);
 
   } catch (error) {
     console.error("Render error:", error);
-    notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
-    imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
+    notesList.innerHTML = `<p>Unable to load notes: ${error.message}</p>`;
+    imagesList.innerHTML = `<p>Unable to load images: ${error.message}</p>`;
   }
 }
+
 
 
 function formatFileSize(bytes) {
