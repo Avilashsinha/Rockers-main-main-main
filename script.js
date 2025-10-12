@@ -74,59 +74,86 @@ async function upload() {
 }
 
 async function render() {
-  const notesContainer = document.getElementById("notesContainer");
-  notesContainer.innerHTML = "Loading notes...";
-
   try {
-    const res = await fetch("/api/getNotes");
-    const notes = await res.json();
+    notesList.innerHTML = '<p>Loading notes...</p>';
+    imagesList.innerHTML = '<p>Loading images...</p>';
 
-    notesContainer.innerHTML = "";
+    const res = await fetch("/api/data");
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
-    if (!notes || notes.length === 0) {
-      notesContainer.innerHTML = "<p>No notes uploaded yet.</p>";
-      return;
-    }
+    const data = await res.json();
 
+    const notes = data.filter((x) => x.type === "note");
+    const images = data.filter((x) => x.type === "image");
+
+    // ✅ Fix Cloudinary URLs to view inline, not download
     notes.forEach((n) => {
-      // ✅ If it's a Cloudinary file, force download link
-      if (n.fileUrl && n.fileUrl.includes("/upload/")) {
-        n.fileUrl = n.fileUrl.replace("/upload/", "/upload/fl_attachment/");
+      if (n.fileUrl && n.fileUrl.includes("res.cloudinary.com/dwm9m3dwk")) {
+        // Replace raw URLs to use inline PDF display mode
+        n.fileUrl = n.fileUrl
+          .replace("/upload/", "/upload/fl_attachment:false/")
+          .replace("/raw/upload/", "/upload/fl_attachment:false/");
       }
+    });
 
-      const noteCard = document.createElement("div");
-      noteCard.className = "note-card";
-      noteCard.innerHTML = `
-        <h3>${n.subject || "Untitled Note"}</h3>
-        <p>${n.description || ""}</p>
-        <div class="actions">
+    // ✅ Render notes with embedded PDF preview (not auto-download)
+    notesList.innerHTML = notes.length > 0
+      ? notes.map((n) => `
+        <div class="card" data-id="${n.id}">
+          <h3>${n.title}</h3>
+          <div class="meta">${n.subject || "General"}</div>
+          <p>${n.desc || ""}</p>
+          <div class="file-info">
+            <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
+          </div>
+          
           ${
-            n.fileUrl
-              ? `<button class="download-btn" data-url="${n.fileUrl}">📥 Download PDF</button>`
+            n.fileType === "application/pdf"
+              ? `<iframe src="${n.fileUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
               : ""
           }
+
+          <div class="card-actions">
+            <!-- ✅ Clicking this downloads directly, not opens -->
+            <a href="${n.fileUrl}" download class="download-btn">
+              ⬇️ Download Note
+            </a>
+            <button onclick="deleteFile('${n.id}')" class="delete-btn">
+              🗑️ Delete
+            </button>
+          </div>
         </div>
-      `;
+      `).join("")
+      : '<p>No notes uploaded yet.</p>';
 
-      notesContainer.appendChild(noteCard);
-    });
+    // ✅ Render images
+    imagesList.innerHTML = images.length > 0
+      ? images.map((i) => `
+        <div class="card" data-id="${i.id}">
+          <h3>${i.title}</h3>
+          <div class="meta">${i.subject || "General"}</div>
+          <p>${i.desc || ""}</p>
+          <div class="file-info">
+            <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
+          </div>
+          <img src="${i.fileUrl}" alt="${i.title}" style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
+          <div class="card-actions">
+            <a href="${i.fileUrl}" download class="download-btn">
+              ⬇️ Download Image
+            </a>
+            <button onclick="deleteFile('${i.id}')" class="delete-btn">
+              🗑️ Delete
+            </button>
+          </div>
+        </div>
+      `).join("")
+      : '<p>No images uploaded yet.</p>';
 
-    // ✅ Attach download button logic
-    document.querySelectorAll(".download-btn").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        const url = btn.getAttribute("data-url");
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = ""; // forces download
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-      });
-    });
-
-  } catch (err) {
-    console.error("Error loading notes:", err);
-    notesContainer.innerHTML = "<p>Failed to load notes.</p>";
+    updateCounts(notes.length, images.length);
+  } catch (error) {
+    console.error("Render error:", error);
+    notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
+    imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
   }
 }
 
