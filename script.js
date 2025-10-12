@@ -75,26 +75,34 @@ async function upload() {
 
 async function render() {
   try {
-    // Show loading placeholders
     notesList.innerHTML = '<p>Loading notes...</p>';
     imagesList.innerHTML = '<p>Loading images...</p>';
 
     const res = await fetch(`${API_URL}/data`);
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-    }
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
 
     const data = await res.json();
 
-    // Fix Cloudinary URLs so PDFs open inline (not downloaded)
+    // 🔧 Fix Cloudinary URLs manually
     data.forEach(item => {
       if (item.fileUrl) {
+        // Ensure it uses your Cloudinary domain
+        if (!item.fileUrl.startsWith("https://res.cloudinary.com/")) {
+          item.fileUrl = `https://res.cloudinary.com/dwm9m3dwk/${item.fileUrl}`;
+        }
+
+        // Handle PDFs (raw resource type)
         if (item.fileUrl.includes("/raw/upload/")) {
-          // Convert Cloudinary raw URLs to inline view URLs
-          item.fileUrl = item.fileUrl.replace("/raw/upload/", "/upload/fl_inline/");
-        } else if (item.fileUrl.includes("/upload/")) {
-          // Ensure inline mode for images or other uploads
-          item.fileUrl = item.fileUrl.replace("/upload/", "/upload/fl_inline/");
+          item.inlineUrl = item.fileUrl.replace("/raw/upload/", "/image/upload/");
+          item.downloadUrl = item.fileUrl.replace("/raw/upload/", "/image/upload/fl_attachment/");
+        }
+        // Handle normal images
+        else if (item.fileUrl.includes("/upload/")) {
+          item.inlineUrl = item.fileUrl.replace("/upload/", "/upload/");
+          item.downloadUrl = item.fileUrl.replace("/upload/", "/upload/fl_attachment/");
+        } else {
+          item.inlineUrl = item.fileUrl;
+          item.downloadUrl = item.fileUrl;
         }
       }
     });
@@ -102,7 +110,7 @@ async function render() {
     const notes = data.filter(x => x.type === "note");
     const images = data.filter(x => x.type === "image");
 
-    // Render Notes Section
+    // 📄 Notes
     notesList.innerHTML = notes.length > 0
       ? notes.map(n => `
         <div class="card" data-id="${n.id}">
@@ -113,16 +121,13 @@ async function render() {
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
 
-          ${n.fileType === "application/pdf" && n.fileUrl
-            ? `<iframe src="${n.fileUrl}" style="width: 100%; height: 300px; border: 1px solid #ccc; border-radius: 8px; margin: 10px 0;"></iframe>`
-            : `<a href="${n.fileUrl}" target="_blank" class="download-btn">View File</a>`
-          }
+          ${n.fileType === "application/pdf"
+            ? `<iframe src="${n.inlineUrl}" style="width:100%; height:300px; border:1px solid #ccc; border-radius:8px;"></iframe>`
+            : `<a href="${n.inlineUrl}" target="_blank" class="download-btn">View File</a>`}
 
           <div class="card-actions">
-            <a href="${n.fileUrl}" target="_blank" class="download-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> Open Note
+            <a href="${n.downloadUrl}" target="_blank" class="download-btn">
+              ⬇️ Download
             </a>
             <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
@@ -130,7 +135,7 @@ async function render() {
       `).join("")
       : '<p>No notes uploaded yet. Start by uploading your first note!</p>';
 
-    // Render Images Section
+    // 🖼️ Images
     imagesList.innerHTML = images.length > 0
       ? images.map(i => `
         <div class="card" data-id="${i.id}">
@@ -140,17 +145,10 @@ async function render() {
           <div class="file-info">
             <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
           </div>
-          <img src="${i.fileUrl}" alt="${i.title}"
-               style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 10px 0;"
-               onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-          <div style="display: none; text-align: center; padding: 20px; color: var(--text-light);">
-            📷 Image preview unavailable
-          </div>
+          <img src="${i.inlineUrl}" alt="${i.title}" style="width:100%; height:200px; object-fit:cover; border-radius:8px; margin:10px 0;">
           <div class="card-actions">
-            <a href="${i.fileUrl}" target="_blank" class="download-btn">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-                <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
-              </svg> Open Image
+            <a href="${i.downloadUrl}" target="_blank" class="download-btn">
+              ⬇️ Download
             </a>
             <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
@@ -158,21 +156,12 @@ async function render() {
       `).join("")
       : '<p>No images uploaded yet. Start by uploading your first image!</p>';
 
-    // Update counts
     updateCounts(notes.length, images.length);
 
   } catch (error) {
     console.error("Render error:", error);
-    notesList.innerHTML = `<p>Unable to load notes. ${
-      error.message.includes('Failed to fetch')
-        ? 'Please check your internet connection.'
-        : error.message
-    }</p>`;
-    imagesList.innerHTML = `<p>Unable to load images. ${
-      error.message.includes('Failed to fetch')
-        ? 'Please check your internet connection.'
-        : error.message
-    }</p>`;
+    notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
+    imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
   }
 }
 
