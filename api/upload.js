@@ -2,17 +2,16 @@ import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 
 cloudinary.config({
-  cloud_name: "dwm9m3dwk", // ✅ Your Cloudinary cloud name
+  cloud_name: "dwm9m3dwk",
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { fileSize: 50 * 1024 * 1024 },
 });
 
-// Global storage for uploaded notes (temporary)
 if (!global.appNotes) {
   global.appNotes = [];
 }
@@ -23,7 +22,8 @@ export default function handler(req, res) {
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
   if (req.method === "OPTIONS") return res.status(200).end();
-  if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
+  if (req.method !== "POST")
+    return res.status(405).json({ error: "Method not allowed" });
 
   return new Promise((resolve) => {
     upload.single("file")(req, res, async (err) => {
@@ -40,26 +40,16 @@ export default function handler(req, res) {
           return resolve();
         }
 
-        // Detect if it's an image or a PDF/other file
-        let resourceType = "raw";
-        if (req.file.mimetype.startsWith("image/")) {
-          resourceType = "image";
-        }
-
-        // ✅ Upload file to Cloudinary without forcing download
+        // ✅ Force all uploads (including PDFs) as 'image' type so they open inline
         const uploadResult = await new Promise((resolve, reject) => {
           const uploadStream = cloudinary.uploader.upload_stream(
             {
               folder: "campusnotes/notes",
-              resource_type: resourceType,
+              resource_type: "image", // ✅ forces Cloudinary to treat PDF as previewable
               public_id: `${Date.now()}_${req.file.originalname.split(".")[0]}`,
               use_filename: true,
               unique_filename: false,
               overwrite: false,
-
-              // 🚫 Prevent auto-download
-              flags: "attachment:false",
-              type: "upload",
             },
             (error, result) => {
               if (error) reject(error);
@@ -86,18 +76,12 @@ export default function handler(req, res) {
 
         res.status(201).json({
           message: "✅ File uploaded successfully!",
-          file: {
-            id: note.id,
-            title: note.title,
-            fileName: note.fileName,
-            fileUrl: note.fileUrl,
-            fileType: note.fileType,
-          },
+          file: note,
         });
 
         return resolve();
       } catch (error) {
-        console.error("❌ Upload failed:", error);
+        console.error("Upload failed:", error);
         res.status(500).json({ error: "Upload failed: " + error.message });
         return resolve();
       }
