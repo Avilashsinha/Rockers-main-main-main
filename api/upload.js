@@ -2,17 +2,17 @@ import { v2 as cloudinary } from "cloudinary";
 import multer from "multer";
 
 cloudinary.config({
-  cloud_name: "dwm9m3dwk", // ✅ hardcode or use process.env
+  cloud_name: "dwm9m3dwk", // ✅ Your Cloudinary cloud name
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
 });
 
-// Global store (temporary)
+// Global storage for uploaded notes (temporary)
 if (!global.appNotes) {
   global.appNotes = [];
 }
@@ -34,27 +34,32 @@ export default function handler(req, res) {
 
       try {
         const { title, subject, desc } = req.body;
+
         if (!req.file || !title) {
           res.status(400).json({ error: "File and title are required" });
           return resolve();
         }
 
-        // ✅ Detect resource type correctly
+        // Detect if it's an image or a PDF/other file
         let resourceType = "raw";
         if (req.file.mimetype.startsWith("image/")) {
           resourceType = "image";
         }
 
-        // ✅ Upload to Cloudinary
+        // ✅ Upload file to Cloudinary without forcing download
         const uploadResult = await new Promise((resolve, reject) => {
           const uploadStream = cloudinary.uploader.upload_stream(
             {
-              folder: `campusnotes/notes`,
+              folder: "campusnotes/notes",
               resource_type: resourceType,
               public_id: `${Date.now()}_${req.file.originalname.split(".")[0]}`,
               use_filename: true,
               unique_filename: false,
               overwrite: false,
+
+              // 🚫 Prevent auto-download
+              flags: "attachment:false",
+              type: "upload",
             },
             (error, result) => {
               if (error) reject(error);
@@ -80,7 +85,7 @@ export default function handler(req, res) {
         global.appNotes.push(note);
 
         res.status(201).json({
-          message: "File uploaded successfully!",
+          message: "✅ File uploaded successfully!",
           file: {
             id: note.id,
             title: note.title,
@@ -89,9 +94,10 @@ export default function handler(req, res) {
             fileType: note.fileType,
           },
         });
+
         return resolve();
       } catch (error) {
-        console.error("Upload failed:", error);
+        console.error("❌ Upload failed:", error);
         res.status(500).json({ error: "Upload failed: " + error.message });
         return resolve();
       }
