@@ -9,7 +9,7 @@ cloudinary.config({
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
 });
 
 // Global storage
@@ -18,6 +18,7 @@ if (!global.appNotes) {
 }
 
 export default function handler(req, res) {
+  // Allow CORS for uploads
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -40,7 +41,7 @@ export default function handler(req, res) {
 
       try {
         const { title, subject, desc, type } = req.body;
-        
+
         if (!req.file || !title) {
           res.status(400).json({ error: "File and title required" });
           resolve();
@@ -48,7 +49,7 @@ export default function handler(req, res) {
         }
 
         const resourceType = type === 'image' ? 'image' : 'raw';
-        
+
         const uploadResult = await new Promise((resolve, reject) => {
           const uploadStream = cloudinary.uploader.upload_stream(
             {
@@ -64,6 +65,12 @@ export default function handler(req, res) {
           uploadStream.end(req.file.buffer);
         });
 
+        // 🔹 FIX: Generate inline preview link for PDFs
+        let previewUrl = uploadResult.secure_url;
+        if (req.file.mimetype === "application/pdf") {
+          previewUrl = previewUrl.replace("/upload/", "/upload/fl_attachment:false/");
+        }
+
         const note = {
           id: Date.now().toString(),
           title: title.trim(),
@@ -71,7 +78,7 @@ export default function handler(req, res) {
           desc: desc?.trim() || '',
           type,
           fileName: req.file.originalname,
-          fileUrl: uploadResult.secure_url,
+          fileUrl: previewUrl, // 👈 Updated preview URL
           publicId: uploadResult.public_id,
           fileType: req.file.mimetype,
           fileSize: req.file.size,
