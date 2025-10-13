@@ -3,17 +3,19 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes" />
   <meta name="description"
     content="CampusNotes - Your all-in-one place for study notes and helpful images. Upload, share, and learn smarter." />
   <title>CampusNotes — Notes & Images</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css" onerror="console.error('CSS failed to load from style.css')"
-    onload="console.log('CSS loaded successfully')" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+
   <style>
-    /* Fallback styles in case external CSS doesn't load */
     :root {
       --bg1: #f3e8ff;
       --bg2: #faf5ff;
@@ -180,28 +182,41 @@
       gap: 1.5rem;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
     }
-  </style>
-  <script>
-    // Debug script to check if CSS is loading
-    window.addEventListener('load', function () {
-      console.log('Page loaded. Current hostname:', window.location.hostname);
-      console.log('Current URL:', window.location.href);
 
-      // Check if CSS is applied by testing a computed style
-      setTimeout(function () {
-        const header = document.querySelector('header');
-        if (header) {
-          const style = window.getComputedStyle(header);
-          console.log('Header background:', style.background);
-          if (!style.background.includes('gradient') && !style.background.includes('rgb')) {
-            console.warn('CSS styles not applied - external CSS may have failed to load');
-          } else {
-            console.log('CSS styles are working correctly');
-          }
-        }
-      }, 1000);
-    });
-  </script>
+    /* Preview Section */
+    #preview-section {
+      display: none;
+      max-width: 900px;
+      margin: 30px auto;
+      background: white;
+      border-radius: 20px;
+      padding: 25px;
+      box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    #preview-section iframe {
+      width: 100%;
+      height: 700px;
+      border: none;
+      border-radius: 10px;
+    }
+
+    .btn {
+      display: inline-block;
+      margin: 10px;
+      padding: 10px 20px;
+      background: linear-gradient(90deg, var(--accent1), var(--accent2));
+      color: white;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+    }
+  </style>
 </head>
 
 <body>
@@ -221,8 +236,7 @@
   <main>
     <section id="home" class="active">
       <h2>Welcome to CampusNotes</h2>
-      <p>Your all-in-one place for study notes and helpful images. Upload, share, and learn smarter — anywhere, anytime.
-      </p>
+      <p>Your all-in-one place for study notes and helpful images. Upload, share, and learn smarter — anywhere, anytime.</p>
       <button class="cta" onclick="startUploading()">Start Uploading 🚀</button>
     </section>
 
@@ -255,32 +269,35 @@
       <h2>All Images</h2>
       <div id="images-list" class="grid"></div>
     </section>
+
+    <!-- Integrated Preview Section -->
+    <section id="preview-section">
+      <h2>📄 Note Preview</h2>
+      <iframe id="pdfViewer" src=""></iframe>
+      <div>
+        <a id="downloadBtn" class="btn" target="_blank">Download PDF</a>
+        <a href="#" class="btn" onclick="closePreview()">Back to Notes</a>
+      </div>
+    </section>
   </main>
 
   <footer>
     © 2025 CampusNotes — Designed by <b>Avilash Sinha Roy</b>
   </footer>
 
-  <script src="script.js" onerror="console.error('Script failed to load')"
-    onload="console.log('Script loaded successfully')"></script>
+  <script src="script.js"></script>
   <script>
-    // Fallback script in case external JS doesn't load
-    if (typeof showSection === 'undefined') {
-      console.warn('External script not loaded, using fallback');
-      function showSection(sectionName) {
-        const sections = document.querySelectorAll("main section");
-        sections.forEach(section => section.classList.remove("active"));
-        const targetSection = document.getElementById(sectionName);
-        if (targetSection) targetSection.classList.add("active");
-      }
-      function startUploading() { showSection('upload'); }
-      function toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        const toggle = document.querySelector('.theme-toggle');
-        toggle.textContent = document.body.classList.contains('dark-theme') ? '☀️' : '🌙';
-      }
+    // Add preview logic inside same page
+    function openPreview(fileUrl) {
+      document.getElementById("pdfViewer").src = fileUrl;
+      document.getElementById("downloadBtn").href = fileUrl;
+      showSection("preview-section");
+    }
+
+    function closePreview() {
+      document.getElementById("pdfViewer").src = "";
+      showSection("notes");
     }
   </script>
 </body>
-
 </html>
