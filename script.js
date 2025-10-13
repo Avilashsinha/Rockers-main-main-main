@@ -39,10 +39,10 @@ async function upload() {
     formData.append("desc", desc);
     formData.append("type", type);
 
-    const res = await fetch("/api/upload", {
-  method: "POST",
-  body: formData
-});
+    const res = await fetch(`${API_URL}/data`, {
+      method: "POST",
+      body: formData,
+    });
 
     if (!res.ok) {
       throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
@@ -75,35 +75,23 @@ async function upload() {
 
 async function render() {
   try {
+    // Show loading state
     notesList.innerHTML = '<p>Loading notes...</p>';
     imagesList.innerHTML = '<p>Loading images...</p>';
 
-    const res = await fetch("/api/data");
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    const res = await fetch(`${API_URL}/data`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
 
     const data = await res.json();
 
     const notes = data.filter((x) => x.type === "note");
     const images = data.filter((x) => x.type === "image");
 
-    // ✅ Fix Cloudinary URLs for inline preview (remove any auto-download flags)
-    notes.forEach((n) => {
-      if (n.fileUrl && n.fileUrl.includes("res.cloudinary.com/dwm9m3dwk")) {
-        // Clean up URL for inline display
-        n.viewUrl = n.fileUrl.replace(/\/upload\/.*?\//, "/upload/");
-        // Add explicit download version
-        n.downloadUrl = n.fileUrl.includes("?")
-          ? `${n.fileUrl}&fl_attachment=true`
-          : `${n.fileUrl}?fl_attachment=true`;
-      } else {
-        n.viewUrl = n.fileUrl;
-        n.downloadUrl = n.fileUrl;
-      }
-    });
-
-    // ✅ Render notes
-    notesList.innerHTML = notes.length > 0
-      ? notes.map((n) => `
+    notesList.innerHTML = notes.length > 0 ? notes
+      .map(
+        (n) => `
         <div class="card" data-id="${n.id}">
           <h3>${n.title}</h3>
           <div class="meta">${n.subject || "General"}</div>
@@ -111,24 +99,27 @@ async function render() {
           <div class="file-info">
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
-          
-          ${
-            n.fileType === "application/pdf"
-              ? `<iframe src="${n.viewUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
-              : ""
+          ${n.fileType === "application/pdf" ?
+            `<iframe src="${n.fileUrl}" style="width: 100%; height: 200px; border: 1px solid #ddd; margin: 10px 0;"></iframe>` :
+            ""
           }
-
           <div class="card-actions">
-            <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download Note</a>
-            <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
+            <a href="${n.fileUrl}" target="_blank" class="download-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
+              </svg> Download Note
+            </a>
+            <button onclick="deleteFile('${n.id}')" class="delete-btn">
+              🗑️ Delete
+            </button>
           </div>
-        </div>
-      `).join("")
-      : '<p>No notes uploaded yet.</p>';
+        </div>`
+      )
+      .join("") : '<p>No notes uploaded yet. Start by uploading your first note!</p>';
 
-    // ✅ Render images
-    imagesList.innerHTML = images.length > 0
-      ? images.map((i) => `
+    imagesList.innerHTML = images.length > 0 ? images
+      .map(
+        (i) => `
         <div class="card" data-id="${i.id}">
           <h3>${i.title}</h3>
           <div class="meta">${i.subject || "General"}</div>
@@ -136,49 +127,29 @@ async function render() {
           <div class="file-info">
             <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
           </div>
-          <img src="${i.fileUrl}" alt="${i.title}" 
-               style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
-         <div class="card-actions">
-  <button onclick="openPreview('${n.viewUrl}', '${n.fileType}')" class="view-btn">👁️ View</button>
-  <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download</a>
-  <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
-</div>
-
-        </div>
-      `).join("")
-      : '<p>No images uploaded yet.</p>';
+          <img src="${i.fileUrl}" alt="${i.title}" style="width: 100%; height: 200px; object-fit: cover; border-radius: 8px; margin: 10px 0;" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+          <div style="display: none; text-align: center; padding: 20px; color: var(--text-light);">📷 Image preview unavailable</div>
+          <div class="card-actions">
+            <a href="${i.fileUrl}" target="_blank" class="download-btn">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                <path d="M12 16l4-5h-3V4h-2v7H8l4 5zm-7 2v2h14v-2H5z"/>
+              </svg> Download Image
+            </a>
+            <button onclick="deleteFile('${i.id}')" class="delete-btn">
+              🗑️ Delete
+            </button>
+          </div>
+        </div>`
+      )
+      .join("") : '<p>No images uploaded yet. Start by uploading your first image!</p>';
 
     updateCounts(notes.length, images.length);
   } catch (error) {
     console.error("Render error:", error);
-    notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
-    imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
-  }
-  function openPreview(url, type) {
-  const modal = document.getElementById("previewModal");
-  const container = document.getElementById("previewContainer");
-  container.innerHTML = "";
-
-  if (type === "application/pdf") {
-    container.innerHTML = `<iframe src="${url}" title="PDF Preview"></iframe>`;
-  } else if (type.startsWith("image/")) {
-    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
-  } else {
-    container.innerHTML = `<p>Cannot preview this file type.</p>`;
-  }
-
-  modal.classList.add("active");
-}
-
-function closePreview(event) {
-  const modal = document.getElementById("previewModal");
-  if (!event || event.target === modal || event.target.classList.contains("close-btn")) {
-    modal.classList.remove("active");
+    notesList.innerHTML = `<p>Unable to load notes. ${error.message.includes('Failed to fetch') ? 'Please check your internet connection.' : error.message}</p>`;
+    imagesList.innerHTML = `<p>Unable to load images. ${error.message.includes('Failed to fetch') ? 'Please check your internet connection.' : error.message}</p>`;
   }
 }
-
-}
-
 
 function formatFileSize(bytes) {
   if (!bytes) return "0 B";
