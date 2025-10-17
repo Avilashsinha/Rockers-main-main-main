@@ -40,9 +40,9 @@ async function upload() {
     formData.append("type", type);
 
     const res = await fetch("/api/upload", {
-  method: "POST",
-  body: formData
-});
+      method: "POST",
+      body: formData
+    });
 
     if (!res.ok) {
       throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
@@ -112,13 +112,13 @@ async function render() {
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
           
-          ${
-            n.fileType === "application/pdf"
-              ? `<iframe src="${n.viewUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
-              : ""
-          }
+          ${n.fileType === "application/pdf"
+          ? `<iframe src="${n.viewUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
+          : ""
+        }
 
           <div class="card-actions">
+            ${n.fileType === "application/pdf" ? `<button onclick="openPreview('${n.viewUrl}', '${n.fileType}')" class="view-btn">👁️ Preview</button>` : ''}
             <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download Note</a>
             <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
@@ -138,12 +138,11 @@ async function render() {
           </div>
           <img src="${i.fileUrl}" alt="${i.title}" 
                style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
-         <div class="card-actions">
-  <button onclick="openPreview('${n.viewUrl}', '${n.fileType}')" class="view-btn">👁️ View</button>
-  <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download</a>
-  <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
-</div>
-
+          <div class="card-actions">
+            <button onclick="openPreview('${i.fileUrl}', '${i.fileType || 'image/jpeg'}')" class="view-btn">👁️ Preview</button>
+            <a href="${i.fileUrl}" download class="download-btn">⬇️ Download</a>
+            <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
+          </div>
         </div>
       `).join("")
       : '<p>No images uploaded yet.</p>';
@@ -154,29 +153,6 @@ async function render() {
     notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
     imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
   }
-  function openPreview(url, type) {
-  const modal = document.getElementById("previewModal");
-  const container = document.getElementById("previewContainer");
-  container.innerHTML = "";
-
-  if (type === "application/pdf") {
-    container.innerHTML = `<iframe src="${url}" title="PDF Preview"></iframe>`;
-  } else if (type.startsWith("image/")) {
-    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
-  } else {
-    container.innerHTML = `<p>Cannot preview this file type.</p>`;
-  }
-
-  modal.classList.add("active");
-}
-
-function closePreview(event) {
-  const modal = document.getElementById("previewModal");
-  if (!event || event.target === modal || event.target.classList.contains("close-btn")) {
-    modal.classList.remove("active");
-  }
-}
-
 }
 
 
@@ -257,6 +233,39 @@ function toggleTheme() {
     body.classList.add("dark-theme");
     themeToggle.textContent = "☀️";
     localStorage.setItem("theme", "dark");
+  }
+}
+
+// Preview functions
+function openPreview(url, type) {
+  const modal = document.getElementById("previewModal");
+  const container = document.getElementById("previewContainer");
+
+  if (!modal || !container) {
+    console.error("Preview modal elements not found");
+    return;
+  }
+
+  container.innerHTML = "";
+
+  if (type === "application/pdf") {
+    container.innerHTML = `<iframe src="${url}" title="PDF Preview"></iframe>`;
+  } else if (type && type.startsWith("image/")) {
+    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
+  } else {
+    // Default to image if type is unknown
+    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
+  }
+
+  modal.classList.add("active");
+}
+
+function closePreview(event) {
+  const modal = document.getElementById("previewModal");
+  if (!modal) return;
+
+  if (!event || event.target === modal || event.target.classList.contains("close-btn")) {
+    modal.classList.remove("active");
   }
 }
 
