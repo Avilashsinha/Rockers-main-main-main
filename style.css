@@ -316,6 +316,27 @@ iframe {
   filter: brightness(1.1);
 }
 
+.view-btn {
+  background: linear-gradient(90deg, #10b981, #059669);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+.view-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  filter: brightness(1.1);
+}
+
 .file-info {
   margin: 0.5rem 0;
   padding: 0.5rem;

@@ -112,14 +112,9 @@ async function render() {
             <small>📄 ${n.fileName} (${formatFileSize(n.fileSize)})</small>
           </div>
           
-          ${
-            n.fileType === "application/pdf"
-              ? `<iframe src="${n.viewUrl}" style="width:100%;height:300px;border:1px solid #ccc;border-radius:6px;"></iframe>`
-              : ""
-          }
-
           <div class="card-actions">
-            <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download Note</a>
+            <button onclick="openPreview('${n.viewUrl}', '${n.fileType}')" class="view-btn">👁️ Preview</button>
+            <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download</a>
             <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
           </div>
         </div>
@@ -137,13 +132,13 @@ async function render() {
             <small>🖼️ ${i.fileName} (${formatFileSize(i.fileSize)})</small>
           </div>
           <img src="${i.fileUrl}" alt="${i.title}" 
-               style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;">
-         <div class="card-actions">
-  <button onclick="openPreview('${n.viewUrl}', '${n.fileType}')" class="view-btn">👁️ View</button>
-  <a href="${n.downloadUrl}" download class="download-btn">⬇️ Download</a>
-  <button onclick="deleteFile('${n.id}')" class="delete-btn">🗑️ Delete</button>
-</div>
-
+               style="width:100%;height:200px;object-fit:cover;border-radius:8px;margin:10px 0;cursor:pointer;"
+               onclick="openPreview('${i.fileUrl}', '${i.fileType}')">
+          <div class="card-actions">
+            <button onclick="openPreview('${i.fileUrl}', '${i.fileType}')" class="view-btn">👁️ Preview</button>
+            <a href="${i.fileUrl}" download class="download-btn">⬇️ Download</a>
+            <button onclick="deleteFile('${i.id}')" class="delete-btn">🗑️ Delete</button>
+          </div>
         </div>
       `).join("")
       : '<p>No images uploaded yet.</p>';
@@ -154,28 +149,7 @@ async function render() {
     notesList.innerHTML = `<p>Unable to load notes. ${error.message}</p>`;
     imagesList.innerHTML = `<p>Unable to load images. ${error.message}</p>`;
   }
-  function openPreview(url, type) {
-  const modal = document.getElementById("previewModal");
-  const container = document.getElementById("previewContainer");
-  container.innerHTML = "";
 
-  if (type === "application/pdf") {
-    container.innerHTML = `<iframe src="${url}" title="PDF Preview"></iframe>`;
-  } else if (type.startsWith("image/")) {
-    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
-  } else {
-    container.innerHTML = `<p>Cannot preview this file type.</p>`;
-  }
-
-  modal.classList.add("active");
-}
-
-function closePreview(event) {
-  const modal = document.getElementById("previewModal");
-  if (!event || event.target === modal || event.target.classList.contains("close-btn")) {
-    modal.classList.remove("active");
-  }
-}
 
 }
 
@@ -282,3 +256,28 @@ document.addEventListener("DOMContentLoaded", () => {
       imagesList.innerHTML = '<div class="card"><h3>📸 Image Gallery</h3><p>Upload functionality requires backend server deployment.</p></div>';
     });
 });
+
+// Preview functions
+function openPreview(url, type) {
+  const modal = document.getElementById("previewModal");
+  const container = document.getElementById("previewContainer");
+  container.innerHTML = "";
+
+  if (type === "application/pdf") {
+    container.innerHTML = `<iframe src="${url}" title="PDF Preview"></iframe>`;
+  } else if (type && type.startsWith("image/")) {
+    container.innerHTML = `<img src="${url}" alt="Image Preview">`;
+  } else {
+    // For images without explicit type or other formats
+    container.innerHTML = `<img src="${url}" alt="Preview" onerror="this.outerHTML='<p>Cannot preview this file type.</p>'">`;
+  }
+
+  modal.classList.add("active");
+}
+
+function closePreview(event) {
+  const modal = document.getElementById("previewModal");
+  if (!event || event.target === modal || event.target.classList.contains("close-btn")) {
+    modal.classList.remove("active");
+  }
+}
